@@ -58,7 +58,7 @@ SELECT
     c.C AS Score_C_Protection
 FROM Champ c
 JOIN dogbase d ON c.Dog_id = d.Dog_id
-WHERE c.C = 0 AND c.A > 85;
+WHERE c.C = 0 AND c.A > 70; --70 баллов квалификация
 
 -- Запрос 6: Статистика по породам (средний балл, лучший балл, худший балл)
 SELECT 
