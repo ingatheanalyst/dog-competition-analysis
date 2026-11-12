@@ -106,3 +106,58 @@ JOIN dogbase d ON c.Dog_id = d.Dog_id
 GROUP BY d.Breed
 HAVING starts_count >= 10 -- Берем только породы, где было хотя бы 10 выступлений
 ORDER BY avg_score DESC, score_range ASC; -- Сначала по среднему баллу, потом по стабильности
+
+-- Запрос 8: Кореляция следа и остальных разделов
+SELECT 
+    CASE 
+        WHEN CAST(A AS INTEGER) >= 90 THEN 'Очхор (90+)'
+        WHEN CAST(A AS INTEGER) BETWEEN 70 AND 89 THEN 'Удв-хор (70-89)'
+        ELSE 'Некв (<70)'
+    END AS group_A_score,
+    
+    COUNT(*) AS dogs_count,
+    ROUND(AVG(CAST(A AS REAL)), 1) AS avg_A,
+    ROUND(AVG(CAST(B AS REAL)), 1) AS avg_B,
+    ROUND(AVG(CAST(C AS REAL)), 1) AS avg_C,
+    ROUND(AVG(CAST(Total AS REAL)), 1) AS avg_Total
+    
+FROM Champ
+WHERE Total NOT IN ('dis', 'ng', 'inj', 'hur', 'vh', '')
+GROUP BY group_A_score
+ORDER BY avg_A DESC;
+
+-- Запрос 9: Вывести всех собак чей результат от года к году упал на 10% и более
+WITH DogHistory AS (
+    SELECT 
+        d.Dog AS Dog_name,
+        c.Year,
+        CAST(c.Total AS INTEGER) AS Total,
+        LAG(CAST(c.Total AS INTEGER)) OVER(PARTITION BY c.Dog_id ORDER BY c.Year) AS prev_total
+    FROM Champ c
+    JOIN dogbase d ON c.Dog_id = d.Dog_id
+    WHERE c.Total NOT IN ('dis', 'ng', 'inj', 'hur', 'vh', '')
+)
+SELECT 
+    Dog_name,
+    Year AS current_year,
+    Total AS current_total,
+    prev_total,
+    ROUND((Total - prev_total) * 100.0 / prev_total, 1) AS drop_percentage
+FROM DogHistory
+WHERE prev_total IS NOT NULL 
+  AND (Total - prev_total) * 1.0 / prev_total <= -0.10 -- Ищем падение на 10% и более
+ORDER BY drop_percentage ASC; -- Сначала те, кто упал сильнее всего
+
+-- Запрос 10: Вывести список от самых стабильных к менее стабильным по общему баллу
+SELECT 
+    d.Dog AS Dog_name,
+    c.Year,
+    CAST(c.Total AS INTEGER) AS Total,
+    -- Считаем среднее по собаке прямо в каждой строке (без GROUP BY)
+    ROUND(AVG(CAST(c.Total AS REAL)) OVER(PARTITION BY c.Dog_id), 1) AS dog_avg,
+    -- Считаем максимальный балл собаки за все время
+    MAX(CAST(c.Total AS INTEGER)) OVER(PARTITION BY c.Dog_id) AS dog_max
+FROM Champ c
+JOIN dogbase d ON c.Dog_id = d.Dog_id
+WHERE c.Total NOT IN ('dis', 'ng', 'inj', 'hur', 'vh', '')
+ORDER BY dog_avg DESC;
