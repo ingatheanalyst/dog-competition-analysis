@@ -202,7 +202,7 @@ WHERE ds.total_starts >= 2 -- Условие: минимум 2 выступле�
   AND ds.Total_Score > bs.Avg_Breed_Score -- И результат должен быть выше среднего по породе
 ORDER BY ds.Year DESC, above_breed_avg DESC;
 
--- Запрос 12: Собаки,. выступившие во все 3х годах
+-- Запрос 12: Собаки, выступившие во все 3х годах
 SELECT d.Dog AS Dog_name, d.Breed
 FROM dogbase d
 JOIN Champ c ON d.Dog_id = c.Dog_id
