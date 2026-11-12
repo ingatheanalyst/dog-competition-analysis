@@ -161,3 +161,51 @@ FROM Champ c
 JOIN dogbase d ON c.Dog_id = d.Dog_id
 WHERE c.Total NOT IN ('dis', 'ng', 'inj', 'hur', 'vh', '')
 ORDER BY dog_avg DESC;
+
+-- Запрос 11: Собаки, которые набрали больше 280 баллов, имеют минимум 2 выступления на ЧР, при этом их средний балл в этом году выше среднего по их породе в этом же году.
+WITH DogStats AS (
+    -- Считаем баллы собаки и общее количество её стартов
+    SELECT 
+        c.Dog_id,
+        c.Year,
+        CAST(c.Total AS INTEGER) AS Total_Score,
+        -- Считаем, сколько всего раз собака выступала (за все годы)
+        COUNT(*) OVER(PARTITION BY c.Dog_id) AS total_starts
+    FROM Champ c
+    WHERE c.Total NOT IN ('dis', 'ng', 'inj', 'hur', 'vh', '')
+),
+BreedStats AS (
+    -- Считаем средний балл по породе в каждом году
+    SELECT 
+        c.Year,
+        d.Breed,
+        AVG(CAST(c.Total AS REAL)) AS Avg_Breed_Score
+    FROM Champ c
+    JOIN dogbase d ON c.Dog_id = d.Dog_id
+    WHERE c.Total NOT IN ('dis', 'ng', 'inj', 'hur', 'vh', '')
+    GROUP BY c.Year, d.Breed
+)
+-- Соединяем всё вместе
+SELECT 
+    d.Dog AS Dog_name,
+    d.Breed,
+    ds.Year,
+    ds.Total_Score,
+    ds.total_starts, -- Выводим количество стартов, чтобы было видно
+    ROUND(bs.Avg_Breed_Score, 1) AS Avg_Breed_Score,
+    ROUND(ds.Total_Score - bs.Avg_Breed_Score, 1) AS above_breed_avg
+FROM DogStats ds
+JOIN dogbase d ON ds.Dog_id = d.Dog_id
+JOIN BreedStats bs ON ds.Year = bs.Year AND d.Breed = bs.Breed
+WHERE ds.total_starts >= 2 -- Условие: минимум 2 выступления за все время
+  AND ds.Total_Score > 280  -- Отсекаем слабые результаты, чтобы список был осмысленным
+  AND ds.Total_Score > bs.Avg_Breed_Score -- И результат должен быть выше среднего по породе
+ORDER BY ds.Year DESC, above_breed_avg DESC;
+
+-- Запрос 12: Собаки,. выступившие во все 3х годах
+SELECT d.Dog AS Dog_name, d.Breed
+FROM dogbase d
+JOIN Champ c ON d.Dog_id = c.Dog_id
+WHERE c.Total NOT IN ('dis', 'ng', 'inj', 'hur', 'vh', '')
+GROUP BY d.Dog, d.Breed
+HAVING COUNT(DISTINCT c.Year) = 3; -- Собака есть во всех трех годах
